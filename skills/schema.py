@@ -95,3 +95,5 @@ class DeleteSkill(graphene.Mutation):
 class Mutation(graphene.ObjectType):
     create_skill = CreateSkill.Field()
     delete_skill = DeleteSkill.Field()
+
+schema = graphene.Schema(query=Query, mutation=Mutation)

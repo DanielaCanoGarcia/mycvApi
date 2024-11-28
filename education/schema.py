@@ -16,7 +16,7 @@ class Query(graphene.ObjectType):
         user = info.context.user
         if user.is_anonymous:
             raise Exception('Not logged in!')
-        print (user)
+        print(user)
 
         filter = (
             Q(posted_by=user) & Q(id=idEducation)
@@ -27,8 +27,8 @@ class Query(graphene.ObjectType):
         user = info.context.user
         if user.is_anonymous:
             raise Exception('Not logged in!')
-        print (user)
-        if (search=="*"):
+        print(user)
+        if search == "*":
             filter = (
                 Q(posted_by=user)
             )
@@ -38,23 +38,22 @@ class Query(graphene.ObjectType):
                 Q(posted_by=user) & Q(degree__icontains=search)
             )
             return Education.objects.filter(filter)
+
 class CreateEducation(graphene.Mutation):
     idEducation = graphene.Int()
-    degree     = graphene.String()
+    degree = graphene.String()
     university = graphene.String()
     start_date = graphene.Date()
-    end_date   = graphene.Date()
+    end_date = graphene.Date()
     posted_by = graphene.Field(UserType)
 
-    #2
     class Arguments:
-        idEducation= graphene.Int()  
-        degree     = graphene.String()
+        idEducation = graphene.Int()
+        degree = graphene.String()
         university = graphene.String()
         start_date = graphene.Date()
-        end_date   = graphene.Date()
+        end_date = graphene.Date()
 
-    #3
     def mutate(self, info, idEducation, degree, university, start_date, end_date):
         user = info.context.user or None
         if user.is_anonymous:
@@ -62,14 +61,14 @@ class CreateEducation(graphene.Mutation):
         print(user)
 
         currentEducation = Education.objects.filter(id=idEducation).first()
-        print (currentEducation)
+        print(currentEducation)
         education = Education(
-            degree     = degree,
-            university = university,
-            start_date = start_date,
-            end_date   = end_date,
-            posted_by  = user
-            )
+            degree=degree,
+            university=university,
+            start_date=start_date,
+            end_date=end_date,
+            posted_by=user
+        )
 
         if currentEducation:
             education.id = currentEducation.id
@@ -77,39 +76,41 @@ class CreateEducation(graphene.Mutation):
         education.save()
 
         return CreateEducation(
-            idEducation  = education.id,
-            degree     = education.degree,
-            university = education.university,
-            start_date = education.start_date,
-            end_date   = education.end_date,
-            posted_by  = education.posted_by
+            idEducation=education.id,
+            degree=education.degree,
+            university=education.university,
+            start_date=education.start_date,
+            end_date=education.end_date,
+            posted_by=education.posted_by
         )
-    
+
 class DeleteEducation(graphene.Mutation):
+    idEducation = graphene.Int()
+
+    class Arguments:
         idEducation = graphene.Int()
 
-        class Arguments:
-            idEducation= graphene.Int()
+    def mutate(self, info, idEducation):
+        user = info.context.user or None
 
-        def mutate(self, info, idEducation):
-            user = info.context.user or None
+        if user.is_anonymous:
+            raise Exception('Not logged in!')
+        print(user)
 
-            if user.is_anonymous:
-                raise Exception('Not logged in!')
-            print(user)
+        currentEducation = Education.objects.filter(id=idEducation).first()
+        print(currentEducation)
 
-            currentEducation = Education.objects.filter(id=idEducation).first()
-            print (currentEducation)
+        if not currentEducation:
+            raise Exception('Invalid Education!')
 
-            if not currentEducation:
-                raise Exception('Invalid Education!')
+        currentEducation.delete()
 
-            currentEducation.delete()
+        return DeleteEducation(
+            idEducation=idEducation
+        )
 
-            return CreateEducation(
-                idEducation=idEducation
-                )
-#4
 class Mutation(graphene.ObjectType):
     create_education = CreateEducation.Field()
     delete_education = DeleteEducation.Field()
+
+schema = graphene.Schema(query=Query, mutation=Mutation)

@@ -95,3 +95,5 @@ class DeleteLanguages(graphene.Mutation):
 class Mutation(graphene.ObjectType):
     create_language = CreateLanguages.Field()
     delete_language = DeleteLanguages.Field()
+
+schema = graphene.Schema(query=Query, mutation=Mutation)

@@ -9,105 +9,113 @@ class WorkExperienceType(DjangoObjectType):
         model = WorkExperience
 
 class Query(graphene.ObjectType):
-    work_experiences = graphene.List(WorkExperienceType, search=graphene.String())
-    work_experience_by_id = graphene.Field(WorkExperienceType, id=graphene.Int())
+    experiences = graphene.List(WorkExperienceType, search=graphene.String())
+    experienceById = graphene.Field(WorkExperienceType, idExperience=graphene.Int())
 
-    def resolve_work_experience_by_id(self, info, id, **kwargs):
+    def resolve_experienceById(self, info, idExperience, **kwargs):
         user = info.context.user
         if user.is_anonymous:
             raise Exception('Not logged in!')
-        return WorkExperience.objects.filter(Q(posted_by=user) & Q(id=id)).first()
+        print(user)
 
-    def resolve_work_experiences(self, info, search=None, **kwargs):
+        filter = (
+            Q(posted_by=user) & Q(id=idExperience)
+        )
+        return WorkExperience.objects.filter(filter).first()
+
+    def resolve_experiences(self, info, search=None, **kwargs):
         user = info.context.user
         if user.is_anonymous:
             raise Exception('Not logged in!')
+        print(user)
         if search == "*":
-            return WorkExperience.objects.filter(posted_by=user)[:10]
-        return WorkExperience.objects.filter(Q(posted_by=user) & Q(city__icontains=search))
+            filter = Q(posted_by=user)
+            return WorkExperience.objects.filter(filter)[:10]
+        else:
+            filter = (
+                Q(posted_by=user) & Q(work__icontains=search)
+            )
+            return WorkExperience.objects.filter(filter)
 
-class CreateOrUpdateWorkExperience(graphene.Mutation):
-    id = graphene.Int()
+class CreateWorkExperience(graphene.Mutation):
+    idExperience = graphene.Int()
     city = graphene.String()
-    year_start = graphene.Int()
-    year_end = graphene.Int()
+    yearStart = graphene.Int()
+    yearEnd = graphene.Int()
     work = graphene.String()
     position = graphene.String()
-    achievements = graphene.JSONString()
-    posted_by = graphene.Field(UserType)
+    achievments = graphene.JSONString()
+    postedBy = graphene.Field(UserType)
 
     class Arguments:
-        id = graphene.Int(required=False)
-        city = graphene.String(required=True)
-        year_start = graphene.Int(required=True)
-        year_end = graphene.Int(required=True)
-        work = graphene.String(required=True)
-        position = graphene.String(required=True)
-        achievements = graphene.JSONString(required=False)
+        idExperience = graphene.Int()
+        city = graphene.String()
+        yearStart = graphene.Int()
+        yearEnd = graphene.Int()
+        work = graphene.String()
+        position = graphene.String()
+        achievments = graphene.JSONString()
 
-    def mutate(self, info, city, year_start, year_end, work, position, achievements={}, id=None):
-        user = info.context.user or None
+    def mutate(self, info, idExperience, city, yearStart, yearEnd, work, position, achievments):
+        user = info.context.user
         if user.is_anonymous:
             raise Exception('Not logged in!')
+        print(user)
 
-        if id:
-            work_experience_instance = WorkExperience.objects.filter(id=id).first()
-            if work_experience_instance:
-                work_experience_instance.city = city
-                work_experience_instance.year_start = year_start
-                work_experience_instance.year_end = year_end
-                work_experience_instance.work = work
-                work_experience_instance.position = position
-                work_experience_instance.achievements = achievements
-            else:
-                raise Exception('WorkExperience not found!')
-        else:
-            work_experience_instance = WorkExperience(
-                city=city,
-                year_start=year_start,
-                year_end=year_end,
-                work=work,
-                position=position,
-                achievements=achievements,
-                posted_by=user
-            )
+        currentExperience = WorkExperience.objects.filter(id=idExperience).first()
+        print(currentExperience)
+        experience = WorkExperience(
+            city=city,
+            year_start=yearStart,
+            year_end=yearEnd,
+            work=work,
+            position=position,
+            achievments=achievments,
+            posted_by=user
+        )
 
-        work_experience_instance.save()
+        if currentExperience:
+            experience.id = currentExperience.id
 
-        return CreateOrUpdateWorkExperience(
-            id=work_experience_instance.id,
-            city=work_experience_instance.city,
-            year_start=work_experience_instance.year_start,
-            year_end=work_experience_instance.year_end,
-            work=work_experience_instance.work,
-            position=work_experience_instance.position,
-            achievements=work_experience_instance.achievements,
-            posted_by=work_experience_instance.posted_by
+        experience.save()
+
+        return CreateWorkExperience(
+            idExperience=experience.id,
+            city=experience.city,
+            yearStart=experience.year_start,
+            yearEnd=experience.year_end,
+            work=experience.work,
+            position=experience.position,
+            achievments=experience.achievments,
+            postedBy=experience.posted_by
         )
 
 class DeleteWorkExperience(graphene.Mutation):
-    id = graphene.Int()
+    idExperience = graphene.Int()
 
     class Arguments:
-        id = graphene.Int()
+        idExperience = graphene.Int()
 
-    def mutate(self, info, id):
-        user = info.context.user or None
+    def mutate(self, info, idExperience):
+        user = info.context.user
         if user.is_anonymous:
             raise Exception('Not logged in!')
-        current_work_experience = WorkExperience.objects.filter(id=id).first()
+        print(user)
 
-        if not current_work_experience:
+        currentExperience = WorkExperience.objects.filter(id=idExperience).first()
+        print(currentExperience)
+
+        if not currentExperience:
             raise Exception('Invalid Work Experience!')
 
-        current_work_experience.delete()
+        currentExperience.delete()
 
         return DeleteWorkExperience(
-            id=id
+            idExperience=idExperience
         )
 
 class Mutation(graphene.ObjectType):
-    create_or_update_work_experience = CreateOrUpdateWorkExperience.Field()
-    delete_work_experience = DeleteWorkExperience.Field()
+    createWorkExperience = CreateWorkExperience.Field()
+    deleteWorkExperience = DeleteWorkExperience.Field()
 
 schema = graphene.Schema(query=Query, mutation=Mutation)

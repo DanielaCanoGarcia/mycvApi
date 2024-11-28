@@ -95,3 +95,5 @@ class DeleteInterest(graphene.Mutation):
 class Mutation(graphene.ObjectType):
     create_interest = CreateInterest.Field()
     delete_interest = DeleteInterest.Field()
+
+schema = graphene.Schema(query=Query, mutation=Mutation)

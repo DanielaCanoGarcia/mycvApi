@@ -9,7 +9,7 @@ class CertificateType(DjangoObjectType):
         model = Certificate
 
 class Query(graphene.ObjectType):
-    certificates = graphene.List(CertificateType, search=graphene.String())
+    certificates = graphene.List(CertificateType)
     certificateById = graphene.Field(CertificateType, idCertificate=graphene.Int())
 
     def resolve_certificateById(self, info, idCertificate, **kwargs):
@@ -23,17 +23,14 @@ class Query(graphene.ObjectType):
         )
         return Certificate.objects.filter(filter).first()
 
-    def resolve_certificates(self, info, search=None, **kwargs):
+    def resolve_certificates(self, info, **kwargs):
         user = info.context.user
         if user.is_anonymous:
             raise Exception('Not logged in!')
         print(user)
-        if search == "*":
-            filter = Q(posted_by=user)
-            return Certificate.objects.filter(filter)[:10]
-        else:
-            filter = Q(posted_by=user) & Q(certificate__icontains=search)
-            return Certificate.objects.filter(filter)
+
+        filter = Q(posted_by=user)
+        return Certificate.objects.filter(filter)[:10]
 
 class CreateCertificate(graphene.Mutation):
     idCertificate = graphene.Int()
@@ -103,3 +100,5 @@ class DeleteCertificate(graphene.Mutation):
 class Mutation(graphene.ObjectType):
     create_certificate = CreateCertificate.Field()
     delete_certificate = DeleteCertificate.Field()
+
+schema = graphene.Schema(query=Query, mutation=Mutation)  # Asegúrate de que esta línea esté presente
