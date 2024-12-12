@@ -116,6 +116,16 @@ class InterestTestCase(GraphQLTestCase):
         self.assertResponseNoErrors(response)
         self.assertEqual(len(content['data']['interests']), 2)
 
+    def test_interests_query_with_search(self):
+        response = self.query(
+            INTERESTS_QUERY,
+            variables={'search': 'Programming'},
+            headers=self.headers
+        )
+        content = json.loads(response.content)
+        self.assertResponseNoErrors(response)
+        self.assertEqual(len(content['data']['interests']), 1)
+
     def test_createInterest_mutation(self):
         response = self.query(
             CREATE_INTEREST_MUTATION,
@@ -134,6 +144,27 @@ class InterestTestCase(GraphQLTestCase):
                 'interest': 'Programming'
             }
         }, content['data'])
+
+    def test_createInterest_mutation_with_existing_id(self):
+        response = self.query(
+            CREATE_INTEREST_MUTATION,
+            variables={
+                'idInterest': self.interest1.id,  # Usar el mismo id para probar la condición if currentInterest
+                'interest': 'Programming'
+            },
+            headers=self.headers
+        )
+        content = json.loads(response.content)
+        self.assertResponseNoErrors(response)
+        self.assertDictEqual({
+            'createInterest': {
+                'idInterest': self.interest1.id,
+                'interest': 'Programming'
+            }
+        }, content['data'])
+        
+        # Verificar que el id del existing interest es el mismo que el id del nuevo interest
+        self.assertEqual(Interest.objects.get(id=self.interest1.id).interest, 'Programming')
 
     def test_deleteInterest_mutation(self):
         # Test deleting an existing interest record
@@ -220,6 +251,3 @@ class UnauthenticatedUserInterestTestCase(GraphQLTestCase):
         print(content)
         self.assertTrue('errors' in content)
         self.assertEqual(content['errors'][0]['message'], 'Not logged in!')
-
-if __name__ == '__main__':
-    TestCase.main()

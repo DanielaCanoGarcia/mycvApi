@@ -91,9 +91,6 @@ class WorkExperienceTestCase(GraphQLTestCase):
     GRAPHQL_SCHEMA = schema
     
     def setUp(self):
-        self.experience1 = mixer.blend(WorkExperience)
-        self.experience2 = mixer.blend(WorkExperience)
-   
         response_user = self.query(
             CREATE_USER_MUTATION,
             variables={'email': 'adsoft@live.com.mx', 'username': 'adsoft', 'password': 'adsoft'}
@@ -111,6 +108,10 @@ class WorkExperienceTestCase(GraphQLTestCase):
         token = content_token['data']['tokenAuth']['token']
         print(token)
         self.headers = {"AUTHORIZATION": f"JWT {token}"}
+
+        user = get_user_model().objects.get(username='adsoft')
+        self.experience1 = mixer.blend(WorkExperience, work='Software Development', posted_by=user)
+        self.experience2 = mixer.blend(WorkExperience, work='Web Development', posted_by=user)
 
     def test_experienceById_query(self):
         response = self.query(
@@ -136,6 +137,17 @@ class WorkExperienceTestCase(GraphQLTestCase):
         self.assertResponseNoErrors(response)
         self.assertEqual(len(content['data']['experiences']), 2)
 
+    def test_experiences_query_with_search(self):
+        response = self.query(
+            EXPERIENCES_QUERY,
+            variables={'search': 'Software'},
+            headers=self.headers
+        )
+        content = json.loads(response.content)
+        self.assertResponseNoErrors(response)
+        self.assertEqual(len(content['data']['experiences']), 1)
+        self.assertEqual(content['data']['experiences'][0]['work'], 'Software Development')
+
     def test_createWorkExperience_mutation(self):
         response = self.query(
             CREATE_WORK_EXPERIENCE_MUTATION,
@@ -144,9 +156,9 @@ class WorkExperienceTestCase(GraphQLTestCase):
                 'city': 'New York',
                 'yearStart': 2020,
                 'yearEnd': 2022,
-                'work': 'Software Development',
-                'position': 'Developer',
-                'achievments': '{"achievment1": "Built a successful app", "achievment2": "Led a team of developers"}'
+                'work': 'Project Management',
+                'position': 'Manager',
+                'achievments': '{"achievment1": "Managed a successful project", "achievment2": "Increased team efficiency"}'
             },
             headers=self.headers
         )
@@ -159,11 +171,42 @@ class WorkExperienceTestCase(GraphQLTestCase):
                 'city': 'New York',
                 'yearStart': 2020,
                 'yearEnd': 2022,
-                'work': 'Software Development',
-                'position': 'Developer',
-                'achievments': '{"achievment1": "Built a successful app", "achievment2": "Led a team of developers"}'
+                'work': 'Project Management',
+                'position': 'Manager',
+                'achievments': '{"achievment1": "Managed a successful project", "achievment2": "Increased team efficiency"}'
             }
         }, content['data'])
+
+    def test_createWorkExperience_mutation_with_existing_id(self):
+        response = self.query(
+            CREATE_WORK_EXPERIENCE_MUTATION,
+            variables={
+                'idExperience': self.experience1.id,  # Usar el mismo id para probar la condición if currentExperience
+                'city': 'Los Angeles',
+                'yearStart': 2021,
+                'yearEnd': 2023,
+                'work': 'Data Analysis',
+                'position': 'Analyst',
+                'achievments': '{"achievment1": "Improved data accuracy", "achievment2": "Developed new analysis techniques"}'
+            },
+            headers=self.headers
+        )
+        content = json.loads(response.content)
+        self.assertResponseNoErrors(response)
+        self.assertDictEqual({
+            'createWorkExperience': {
+                'idExperience': self.experience1.id,
+                'city': 'Los Angeles',
+                'yearStart': 2021,
+                'yearEnd': 2023,
+                'work': 'Data Analysis',
+                'position': 'Analyst',
+                'achievments': '{"achievment1": "Improved data accuracy", "achievment2": "Developed new analysis techniques"}'
+            }
+        }, content['data'])
+        
+        # Verificar que el id del existing experience es el mismo que el id del nuevo experience
+        self.assertEqual(WorkExperience.objects.get(id=self.experience1.id).work, 'Data Analysis')
 
     def test_deleteWorkExperience_mutation(self):
         # Test deleting an existing work experience record
@@ -255,6 +298,3 @@ class UnauthenticatedUserWorkExperienceTestCase(GraphQLTestCase):
         print(content)
         self.assertTrue('errors' in content)
         self.assertEqual(content['errors'][0]['message'], 'Not logged in!')
-
-if __name__ == '__main__':
-    TestCase.main()

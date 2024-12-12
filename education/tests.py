@@ -85,7 +85,9 @@ class EducationTestCase(GraphQLTestCase):
     def setUp(self):
         self.education1 = mixer.blend(Education)
         self.education2 = mixer.blend(Education)
-   
+        self.education3 = mixer.blend(Education, degree="Computer Science", university="MIT", start_date="2020-09-01", end_date="2024-06-01")  
+        self.education2 = mixer.blend(Education, degree="Mechanical Engineering", university="Stanford", start_date="2021-09-01", end_date="2025-06-01")
+        
         response_user = self.query(
             CREATE_USER_MUTATION,
             variables={'email': 'adsoft@live.com.mx', 'username': 'adsoft', 'password': 'adsoft'}
@@ -181,6 +183,59 @@ class EducationTestCase(GraphQLTestCase):
         self.assertTrue('errors' in content)
         self.assertEqual(content['errors'][0]['message'], 'Invalid Education!')
 
+    # Pruebas añadidas
+    def test_degrees_query_with_search(self):
+        response = self.query(
+            DEGREES_QUERY,
+            variables={'search': 'Computer'},
+            headers=self.headers
+        )
+        content = json.loads(response.content)
+        self.assertResponseNoErrors(response)
+        self.assertEqual(len(content['data']['degrees']), 1)
+
+    def test_user_anonymous(self):
+        response = self.query(
+            CREATE_EDUCATION_MUTATION,
+            variables={
+                'idEducation': 0,
+                'degree': 'Physics',
+                'university': 'Harvard',
+                'startDate': '2022-09-01',
+                'endDate': '2026-06-01'
+            }
+        )
+        content = json.loads(response.content)
+        self.assertTrue('errors' in content)
+        self.assertEqual(content['errors'][0]['message'], 'Not logged in!')
+
+    def test_createEducation_mutation_with_existing_id(self):
+        response = self.query(
+            CREATE_EDUCATION_MUTATION,
+            variables={
+                'idEducation': self.education1.id,  # Usar el mismo id para probar la condición if currentEducation
+                'degree': 'Physics',
+                'university': 'Harvard',
+                'startDate': '2022-09-01',
+                'endDate': '2026-06-01'
+            },
+            headers=self.headers
+        )
+        content = json.loads(response.content)
+        self.assertResponseNoErrors(response)
+        self.assertDictEqual({
+            'createEducation': {
+                'idEducation': self.education1.id,
+                'degree': 'Physics',
+                'university': 'Harvard',
+                'startDate': '2022-09-01',
+                'endDate': '2026-06-01'
+            }
+        }, content['data'])
+        
+        # Verificar que el id del existing education es el mismo que el id del nuevo education
+        self.assertEqual(Education.objects.get(id=self.education1.id).degree, 'Physics')
+
 class UnauthenticatedUserEducationTestCase(GraphQLTestCase):
     GRAPHQL_URL = "http://localhost:8000/graphql/"
     GRAPHQL_SCHEMA = schema
@@ -226,5 +281,3 @@ class UnauthenticatedUserEducationTestCase(GraphQLTestCase):
         self.assertTrue('errors' in content)
         self.assertEqual(content['errors'][0]['message'], 'Not logged in!')
 
-if __name__ == '__main__':
-    TestCase.main()

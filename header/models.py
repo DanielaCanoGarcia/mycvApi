@@ -10,3 +10,4 @@ class Header(models.Model):
     ubication = models.TextField(blank=True, null=True)
     redSocial = models.TextField(blank=True, null=True)
     posted_by = models.OneToOneField(settings.AUTH_USER_MODEL, null=True, on_delete=models.CASCADE)
+    

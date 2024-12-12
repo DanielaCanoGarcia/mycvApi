@@ -81,6 +81,7 @@ class CertificateTestCase(GraphQLTestCase):
     def setUp(self):
         self.certificate1 = mixer.blend(Certificate)
         self.certificate2 = mixer.blend(Certificate)
+        self.certificate3 = mixer.blend(Certificate, id=1, certificate="Existing Certificate", description="Existing Description", year=2021)
    
         response_user = self.query(
             CREATE_USER_MUTATION,
@@ -145,6 +146,31 @@ class CertificateTestCase(GraphQLTestCase):
                 'year': 2022
             }
         }, content['data'])
+
+    def test_createCertificate_mutation_with_existing_id(self):
+        response = self.query(
+            CREATE_CERTIFICATE_MUTATION,
+            variables={
+                'idCertificate': 1,
+                'certificate': 'New Certificate',
+                'description': 'New Description',
+                'year': 2022
+            },
+            headers=self.headers
+        )
+        content = json.loads(response.content)
+        print(content['data'])
+        self.assertResponseNoErrors(response)
+        self.assertDictEqual({
+            'createCertificate': {
+                'idCertificate': 1,
+                'certificate': 'New Certificate',
+                'description': 'New Description',
+                'year': 2022
+            }
+        }, content['data'])
+        self.assertEqual(Certificate.objects.get(id=1).certificate, 'New Certificate')
+
 
     def test_deleteCertificate_mutation(self):
         # Test deleting an existing certificate
@@ -233,5 +259,3 @@ class UnauthenticatedUserCertificateTestCase(GraphQLTestCase):
         self.assertTrue('errors' in content)
         self.assertEqual(content['errors'][0]['message'], 'Not logged in!')
 
-if __name__ == '__main__':
-    TestCase.main()

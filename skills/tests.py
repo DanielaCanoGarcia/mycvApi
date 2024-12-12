@@ -71,9 +71,6 @@ class SkillsTestCase(GraphQLTestCase):
     GRAPHQL_SCHEMA = schema
     
     def setUp(self):
-        self.skill1 = mixer.blend(Skills)
-        self.skill2 = mixer.blend(Skills)
-   
         response_user = self.query(
             CREATE_USER_MUTATION,
             variables={'email': 'adsoft@live.com.mx', 'username': 'adsoft', 'password': 'adsoft'}
@@ -91,6 +88,10 @@ class SkillsTestCase(GraphQLTestCase):
         token = content_token['data']['tokenAuth']['token']
         print(token)
         self.headers = {"AUTHORIZATION": f"JWT {token}"}
+
+        user = get_user_model().objects.get(username='adsoft')
+        self.skill1 = mixer.blend(Skills, skills='Python', posted_by=user)
+        self.skill2 = mixer.blend(Skills, skills='Django', posted_by=user)
 
     def test_skillById_query(self):
         response = self.query(
@@ -116,12 +117,23 @@ class SkillsTestCase(GraphQLTestCase):
         self.assertResponseNoErrors(response)
         self.assertEqual(len(content['data']['skills']), 2)
 
+    def test_skills_query_with_search(self):
+        response = self.query(
+            SKILLS_QUERY,
+            variables={'search': 'Python'},
+            headers=self.headers
+        )
+        content = json.loads(response.content)
+        self.assertResponseNoErrors(response)
+        self.assertEqual(len(content['data']['skills']), 1)
+        self.assertEqual(content['data']['skills'][0]['skills'], 'Python')
+
     def test_createSkill_mutation(self):
         response = self.query(
             CREATE_SKILL_MUTATION,
             variables={
                 'idSkill': 0,
-                'skills': 'Python'
+                'skills': 'JavaScript'
             },
             headers=self.headers
         )
@@ -131,9 +143,30 @@ class SkillsTestCase(GraphQLTestCase):
         self.assertDictEqual({
             'createSkill': {
                 'idSkill': content['data']['createSkill']['idSkill'],
-                'skills': 'Python'
+                'skills': 'JavaScript'
             }
         }, content['data'])
+
+    def test_createSkill_mutation_with_existing_id(self):
+        response = self.query(
+            CREATE_SKILL_MUTATION,
+            variables={
+                'idSkill': self.skill1.id,  # Usar el mismo id para probar la condición if currentSkill
+                'skills': 'Java'
+            },
+            headers=self.headers
+        )
+        content = json.loads(response.content)
+        self.assertResponseNoErrors(response)
+        self.assertDictEqual({
+            'createSkill': {
+                'idSkill': self.skill1.id,
+                'skills': 'Java'
+            }
+        }, content['data'])
+        
+        # Verificar que el id del existing skill es el mismo que el id del nuevo skill
+        self.assertEqual(Skills.objects.get(id=self.skill1.id).skills, 'Java')
 
     def test_deleteSkill_mutation(self):
         # Test deleting an existing skill record
@@ -220,6 +253,3 @@ class UnauthenticatedUserSkillsTestCase(GraphQLTestCase):
         print(content)
         self.assertTrue('errors' in content)
         self.assertEqual(content['errors'][0]['message'], 'Not logged in!')
-
-if __name__ == '__main__':
-    TestCase.main()

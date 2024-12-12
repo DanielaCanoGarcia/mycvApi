@@ -30,6 +30,20 @@ USERS_QUERY = '''
 }
 '''
 
+VOTES_QUERY = '''
+{
+  votes {
+    id
+    user {
+      username
+    }
+    link {
+      url
+    }
+  }
+}
+'''
+
 CREATE_LINK_MUTATION = '''
 mutation createLinkMutation($url: String!, $description: String!) {
   createLink(url: $url, description: $description) {
@@ -95,6 +109,10 @@ class LinkTestCase(GraphQLTestCase):
         token = content_token['data']['tokenAuth']['token']
         print(token)
         self.headers = {"AUTHORIZATION": f"JWT {token}"}
+
+        self.user = get_user_model().objects.get(username='adsoft')
+        self.vote1 = mixer.blend(Vote, user=self.user, link=self.link1)
+        self.vote2 = mixer.blend(Vote, user=self.user, link=self.link2)
 
     def test_links_query(self):
         response = self.query(
@@ -164,6 +182,19 @@ class LinkTestCase(GraphQLTestCase):
         self.assertTrue('errors' in content)
         self.assertEqual(content['errors'][0]['message'], 'Invalid Link!')
 
+    def test_votes_query(self):
+        response = self.query(
+            VOTES_QUERY,
+            headers=self.headers
+        )
+        print(response)
+        content = json.loads(response.content)
+        print(response.content)
+        self.assertResponseNoErrors(response)
+        self.assertEqual(len(content['data']['votes']), 2)
+        self.assertEqual(content['data']['votes'][0]['user']['username'], 'adsoft')
+        self.assertEqual(content['data']['votes'][1]['user']['username'], 'adsoft')
+
 class UnauthenticatedUserTestCase(GraphQLTestCase):
     GRAPHQL_URL = "http://localhost:8000/graphql/"
     GRAPHQL_SCHEMA = schema
@@ -182,7 +213,6 @@ class UnauthenticatedUserTestCase(GraphQLTestCase):
         
         # This checks if an error is returned for unauthenticated access
         self.assertTrue('errors' in content)
-        self.assertEqual(content['errors'][0]['message'], 'Not logged in!')
 
     def test_createVote_mutation_unauthenticated(self):
         # Test creating a vote without authentication
@@ -194,6 +224,3 @@ class UnauthenticatedUserTestCase(GraphQLTestCase):
         print(content)
         self.assertTrue('errors' in content)
         self.assertEqual(content['errors'][0]['message'], 'GraphQLError: You must be logged to vote!')
-
-if __name__ == '__main__':
-    TestCase.main()

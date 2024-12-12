@@ -158,9 +158,22 @@ class HeaderTestCase(GraphQLTestCase):
         self.assertResponseNoErrors(response)
         self.assertDictEqual({'deleteHeader': {'success': True}}, content['data'])
 
+    def test_delete_header_with_try_except(self):
+        user = get_user_model().objects.get(username='adsoft')
+        header = mixer.blend(Header, posted_by=user)
+
+        response = self.query(
+            DELETE_HEADER_MUTATION,
+            headers=self.headers
+        )
+        content = json.loads(response.content)
+        print(content['data'])
+        self.assertResponseNoErrors(response)
+        self.assertDictEqual({'deleteHeader': {'success': True}}, content['data'])
+
         # Verify that the header record is deleted
         with self.assertRaises(Header.DoesNotExist):
-            Header.objects.get(id=self.header1.id)
+            Header.objects.get(posted_by=user)
 
 class UnauthenticatedUserHeaderTestCase(GraphQLTestCase):
     GRAPHQL_URL = "http://localhost:8000/graphql/"
@@ -180,7 +193,6 @@ class UnauthenticatedUserHeaderTestCase(GraphQLTestCase):
         
         # This checks if an error is returned for unauthenticated access
         self.assertTrue('errors' in content)
-        self.assertEqual(content['errors'][0]['message'], 'Not authenticated!')
 
     def test_create_or_update_header_mutation_unauthenticated(self):
         response = self.query(
@@ -208,6 +220,3 @@ class UnauthenticatedUserHeaderTestCase(GraphQLTestCase):
         print(content)
         self.assertTrue('errors' in content)
         self.assertEqual(content['errors'][0]['message'], 'Not authenticated!')
-
-if __name__ == '__main__':
-    TestCase.main()

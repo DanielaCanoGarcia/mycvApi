@@ -116,6 +116,16 @@ class LanguagesTestCase(GraphQLTestCase):
         self.assertResponseNoErrors(response)
         self.assertEqual(len(content['data']['languages']), 2)
 
+    def test_languages_query_with_search(self):
+        response = self.query(
+            LANGUAGES_QUERY,
+            variables={'search': 'English'},
+            headers=self.headers
+        )
+        content = json.loads(response.content)
+        self.assertResponseNoErrors(response)
+        self.assertEqual(len(content['data']['languages']), 1)
+
     def test_createLanguage_mutation(self):
         response = self.query(
             CREATE_LANGUAGE_MUTATION,
@@ -134,6 +144,27 @@ class LanguagesTestCase(GraphQLTestCase):
                 'language': 'Spanish'
             }
         }, content['data'])
+
+    def test_createLanguage_mutation_with_existing_id(self):
+        response = self.query(
+            CREATE_LANGUAGE_MUTATION,
+            variables={
+                'idLanguage': self.language1.id,  # Usar el mismo id para probar la condición if currentLanguage
+                'language': 'German'
+            },
+            headers=self.headers
+        )
+        content = json.loads(response.content)
+        self.assertResponseNoErrors(response)
+        self.assertDictEqual({
+            'createLanguage': {
+                'idLanguage': self.language1.id,
+                'language': 'German'
+            }
+        }, content['data'])
+        
+        # Verificar que el id del existing language es el mismo que el id del nuevo language
+        self.assertEqual(Languages.objects.get(id=self.language1.id).language, 'German')
 
     def test_deleteLanguage_mutation(self):
         # Test deleting an existing language record
@@ -220,6 +251,3 @@ class UnauthenticatedUserLanguagesTestCase(GraphQLTestCase):
         print(content)
         self.assertTrue('errors' in content)
         self.assertEqual(content['errors'][0]['message'], 'Not logged in!')
-
-if __name__ == '__main__':
-    TestCase.main()
