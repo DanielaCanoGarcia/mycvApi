@@ -8,7 +8,7 @@ class LanguagesType(DjangoObjectType):
     class Meta:
         model = Languages
 
-class Query(graphene.ObjectType):
+class Query(graphene.ObjectType): 
     languages = graphene.List(LanguagesType, search=graphene.String())
     languageById = graphene.Field(LanguagesType, idLanguage=graphene.Int())
 

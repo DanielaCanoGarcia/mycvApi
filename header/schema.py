@@ -57,7 +57,7 @@ class Query(graphene.ObjectType):
     headers = graphene.List(HeaderType)
 
     def resolve_headers(self, info, **kwargs):
-        return Header.objects.all()
+        return Header.objects.filter(filter).first()
 
 class Mutation(graphene.ObjectType):
     create_or_update_header = CreateOrUpdateHeader.Field()
