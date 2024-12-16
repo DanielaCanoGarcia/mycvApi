@@ -57,11 +57,13 @@ class Query(graphene.ObjectType):
     headers = graphene.List(HeaderType)
 
     def resolve_headers(self, info, **kwargs):
-        return Header.objects.filter(filter).first()
+        user = info.context.user
+        if user.is_anonymous:
+            raise Exception("Not authenticated!")
+        return Header.objects.filter(posted_by=user)
 
 class Mutation(graphene.ObjectType):
     create_or_update_header = CreateOrUpdateHeader.Field()
     delete_header = DeleteHeader.Field()
 
 schema = graphene.Schema(query=Query, mutation=Mutation)
-
